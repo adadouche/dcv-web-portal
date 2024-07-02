@@ -1,0 +1,108 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "Enable IAM User Permissions",
+            "Principals": {
+                "Type": "AWS",
+                "Identifiers": [
+                    "arn:aws:iam::${account_id}:root"
+                ]
+            },
+            "Effect": "Allow",
+            "Actions": [
+                "kms:*"
+            ],
+            "Resources": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "Allow cloudwatch to (d)encrypt with this key",
+            "Principals": {
+                "Type": "Service",
+                "Identifiers": [
+                    "logs.${region}.amazonaws.com"
+                ]
+            },
+            "Effect": "Allow",
+            "Actions": [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:ReEncrypt*",
+                "kms:GenerateDataKey*",
+                "kms:Describe*"
+            ],
+            "Condition": {
+                "ArnLike": {
+                    "kms:EncryptionContext:aws:logs:arn": "arn:aws:logs:${region}:${account_id}:*"
+                }
+            },
+            "Resources": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "Allow ASG to start instances with EBS volumes encrypted with this key",
+            "Principals": {
+                "Type": "AWS",
+                "Identifiers": [
+                    "arn:aws:iam::${account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+                ]
+            },
+            "Effect": "Allow",
+            "Actions": [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:ReEncrypt*",
+                "kms:GenerateDataKey*",
+                "kms:Describe*"
+            ],
+            "Resources": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "Allow attachment of persistent ",
+            "Principals": {
+                "Type": "AWS",
+                "Identifiers": [
+                    "arn:aws:iam::${account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+                ]
+            },
+            "Effect": "Allow",
+            "Actions": [
+                "kms:CreateGrant"
+            ],
+            "Condition": {
+                "Bool": {
+                    "kms:GrantIsForAWSResource": true
+                }
+            },
+            "Resources": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "Allow Cloudwatch to write logs encrypted with this key",
+            "Principals": {
+                "Identifiers": [
+                    "logs.amazonaws.com",
+                    "delivery.logs.amazonaws.com"
+                ],
+                "Type": "Service"
+            },
+            "Effect": "Allow",
+            "Actions": [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:ReEncrypt*",
+                "kms:GenerateDataKey*",
+                "kms:Describe*"
+            ],
+            "Resources": [
+                "*"
+            ]
+        }
+    ]
+}

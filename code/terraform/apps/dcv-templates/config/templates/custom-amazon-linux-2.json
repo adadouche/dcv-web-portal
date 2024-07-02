@@ -1,0 +1,38 @@
+{
+  "description": "a custom Amazon Linux 2 instance in various sizes",
+  "template_type": "workstation",
+  "instance_type": "t3.medium",
+  "instance_families": [
+    "t3"
+  ],
+  "instance_sizes": [
+    "medium",
+    "large"
+  ],
+  "os_name": "amazon-linux-2",
+  "os_base_ami_regexp": "amzn2-ami-kernel-5.10-hvm-2.0.*-x86_64-gp2",
+  "volume_type": "gp3",
+  "volume_size": 30,
+  "volume_size_min": 20,
+  "volume_size_max": 300,
+  "volume_iops": 3000,
+  "volume_iops_min": 3000,
+  "volume_iops_max": 3000,
+  "volume_throughput": 250,
+  "volume_throughput_min": 250,
+  "volume_throughput_max": 350,
+  "cognito_groups": [
+    "user-group-1"
+  ],
+  "components_aws": [
+    "amazon-cloudwatch-agent-linux"
+  ],
+  "components_custom": [
+    "custom-component-linux",
+    "custom-component-amazon-linux"
+  ],
+  "policies_managed": [
+    "AmazonS3FullAccess"
+  ],
+  "policies_inline": []
+}

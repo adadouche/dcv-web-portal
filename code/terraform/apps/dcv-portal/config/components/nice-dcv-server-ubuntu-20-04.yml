@@ -1,0 +1,112 @@
+---
+os_platform: Linux
+downloads:
+- name: nice-dcv-server
+  url: https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Servers/nice-dcv-2023.1-16220-ubuntu2004-x86_64.tgz
+  filename: nice-dcv-server.tgz
+- name: google-chrome
+  url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+  filename: google-chrome-stable_x86_64.deb
+schemaVersion: 1
+parameters:
+- s3_uri_dcv_server:
+    type: string
+    default: ${s3-bucket-uri}/nice-dcv-server.tgz
+    description: 'The NICE DCV Server S3 URI'
+- s3_uri_chrome:
+    type: string
+    default: ${s3-bucket-uri}/google-chrome-stable_x86_64.deb
+    description: 'The Google Chrome S3 URI'
+phases:
+- name: build
+  steps:
+  - name: CreateWorkingDirectory
+    action: CreateFolder
+    inputs:
+    - path: "/AWS-VDI-AUTOMATION/BUILD-IMAGE/VDI-COMPONENT"
+      overwrite: true
+  - name: DownloadNiceDCVFromS3URI
+    action: S3Download
+    inputs:
+    - source: "{{ s3_uri_dcv_server }}"
+      destination: "{{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-server.tgz"
+  - name: DownloadBrowserFromS3URI
+    action: S3Download
+    inputs:
+    - source: "{{ s3_uri_chrome }}"
+      destination: "{{ build.CreateWorkingDirectory.inputs[0].path }}/google-chrome-stable_x86_64.deb"      
+  - name: UncompressNiceDCVServer
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - tar zxvf {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-server.tgz -C {{ build.CreateWorkingDirectory.inputs[0].path }} --overwrite
+      - cp -rf {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-*-x86_64/nice-dcv-server*.deb {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-server.deb
+  - name: InstallEnvironment
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - echo "deb http://security.ubuntu.com/ubuntu focal-security main" | sudo tee /etc/apt/sources.list.d/focal-security.list
+      - apt-get update -y -qq
+      - apt-get install -y libssl1.1
+      - apt-get install -y ubuntu-desktop
+      - apt-get install -y gdm3
+      - dpkg-reconfigure gdm3
+  - name: InstallNiceDCVServer
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - apt install -y {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-server.deb
+  - name: InstallBrowser
+    action: ExecuteBash
+    inputs:
+      commands:
+      - apt install -y {{ build.CreateWorkingDirectory.inputs[0].path }}/google-chrome-stable_x86_64.deb
+      - ln -s /usr/bin/google-chrome-stable /usr/bin/chromium      
+  - name: InstallPip
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - apt install -y python3-pip
+  - name: InstallCrudini
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - pip3 install crudini
+  - name: InstallJq
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - apt install -y jq
+  - name: SetNiceDCVConfigurationFile
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - systemctl stop dcvserver      
+      - crudini --set /etc/dcv/dcv.conf "connectivity" "enable-quic-frontend" "true"
+      - crudini --set /etc/dcv/dcv.conf "security" "no-tls-strict" "true"
+  - name: Reboot
+    action: Reboot
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1

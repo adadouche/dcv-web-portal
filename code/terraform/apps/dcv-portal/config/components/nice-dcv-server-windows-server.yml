@@ -1,0 +1,83 @@
+---
+os_platform: Windows
+downloads:
+- name: nice-dcv-server
+  url: https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Servers/nice-dcv-server-x64-Release-2023.1-16220.msi
+  filename: nice-dcv-server.msi
+- name: nice-dcv-server-virtual-display
+  url: https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-virtual-display-x64-Release.msi
+  filename: nice-dcv-virtual-display.msi
+- name: google-chrome
+  url: https://dl.google.com/chrome/install/375.126/chrome_installer.exe
+  filename: google-chrome-installer.exe
+- name: aws-cli
+  url: https://awscli.amazonaws.com/AWSCLIV2.msi
+  filename: AWSCLIV2.msi  
+schemaVersion: 1
+parameters:
+- s3_uri_chrome:
+    type: string
+    default: ${s3-bucket-uri}/google-chrome-installer.exe
+    description: 'The Google Chrome S3 URI'    
+- s3_uri_awscli:
+    type: string
+    default: ${s3-bucket-uri}/AWSCLIV2.msi
+    description: 'The AWS CLI S3 URI'    
+- s3_uri_dcv_server:
+    type: string
+    default: ${s3-bucket-uri}/nice-dcv-server.msi
+    description: 'The NICE DCV Server S3 URI'
+- s3_uri_dcv_virtual_display:
+    type: string
+    default: ${s3-bucket-uri}/nice-dcv-virtual-display.msi
+    description: 'The Nice DCV Display driver S3 URI'
+phases:
+- name: build
+  steps:
+  - name: InstallBrowser
+    action: ExecutePowerShell
+    inputs:
+      commands: 
+      - |
+        $ChromeInstaller = "$env:TEMP\ChromeInstaller.exe"
+        aws s3 cp {{ s3_uri_chrome }} $ChromeInstaller
+        & "$ChromeInstaller" /silent /install
+        Do { 
+          $ProcessesFound = Get-Process | ?{$Process2Monitor -contains $_.Name} | Select-Object -ExpandProperty Name 
+          If ($ProcessesFound) { 
+            "Still running: $($ProcessesFound -join ', ')" | Write-Host; Start-Sleep -Seconds 2 
+          } else { 
+            rm "$$ChromeInstaller" -ErrorAction SilentlyContinue -Verbose 
+          } 
+        } Until (!$ProcessesFound)  
+  - name: DownloadInstallDCVServer
+    action: ExecutePowerShell
+    inputs:
+      commands: 
+      - |
+        aws s3 cp {{ s3_uri_dcv_server }}         $env:TEMP\DCVServer.msi
+        aws s3 cp {{ s3_uri_dcv_virtual_display }} $env:TEMP\DCVDisplayDriver.msi 
+
+        $token        = Invoke-RestMethod -Headers @{"X-aws-ec2-metadata-token-ttl-seconds" = "21600"} -Method PUT -Uri http://169.254.169.254/latest/api/token
+        $instanceType = Invoke-RestMethod -Headers @{"X-aws-ec2-metadata-token" = $token             } -Method GET -Uri http://169.254.169.254/latest/meta-data/instance-type
+
+        if(($InstanceType[0] -ne 'g') -or ($InstanceType[0] -ne 'p')){
+          Invoke-Command -ScriptBlock {Start-Process "msiexec.exe" -ArgumentList "/I $env:TEMP\DCVDisplayDriver.msi /quiet /norestart" -Wait}
+        }
+
+        Invoke-Command -ScriptBlock   {Start-Process "msiexec.exe" -ArgumentList "/I $env:TEMP\DCVServer.msi ADDLOCAL=ALL /quiet /norestart /l*v dcv_install_msi.log " -Wait}
+        while (-not(Get-Service dcvserver -ErrorAction SilentlyContinue)) { 
+          Start-Sleep -Milliseconds 250 
+        }
+        New-ItemProperty -Path "Microsoft.PowerShell.Core\Registry::HKEY_USERS\S-1-5-18\Software\GSettings\com\nicesoftware\dcv\connectivity" -Name enable-quic-frontend -PropertyType DWORD -Value 1 -force
+        Restart-Service -Name dcvserver
+
+
+  - action: Reboot
+    name: Reboot
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+
+
+

@@ -1,0 +1,33 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path';
+
+// https://vitejs.dev/config/
+export default defineConfig({  
+  base: './',
+  plugins: [
+    react()
+  ],
+  build: {
+    target: 'esnext'
+  },
+  define: {
+    // By default, Vite doesn't include shims for NodeJS/
+    // necessary for segment analytics lib to work
+    global: {},
+  },
+  resolve: {
+    alias: {
+      '@cloudscape-design/{}-styles': path.resolve(__dirname, "./node_modules/@cloudscape-design/global-styles")
+    }
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'apiEndpoint',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      }
+    },
+  },
+})

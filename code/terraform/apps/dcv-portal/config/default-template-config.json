@@ -1,0 +1,64 @@
+{
+    "image_builder_instance_type": "t3.small",
+    "image_builder_run_schedule": "cron(0 1 1 * ?)",
+    "image_builder_policies_managed": [
+        "AmazonSSMManagedInstanceCore",
+        "EC2InstanceProfileForImageBuilder",
+        "CloudWatchAgentServerPolicy"
+    ],
+    "image_builder_policies_inline_statments": [
+        {
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:s3:::${account_id}-${region}-${prefix}-ib-downloads/*"
+            ],
+            "Condition": {}
+        },
+        {
+            "Action": [
+                "s3:PutObject"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:s3:::${account_id}-${region}-${prefix}-ib-pipeline-logs/*"
+            ],
+            "Condition": {}
+        }
+    ],
+    "default_policies_managed": [
+        "AmazonSSMManagedInstanceCore"
+    ],
+    "default_policies_inline": [],
+    "default_components_aws": {
+        "amazon-linux-2": [],
+        "ubuntu-20.04": [],
+        "ubuntu-22.04": [],
+        "linux": [
+            "amazon-cloudwatch-agent-linux",
+            "update-linux",
+            "aws-cli-version-2-linux"
+        ],
+        "windows-server-2016": [],
+        "windows-server-2019": [],
+        "windows-server-2022": [],
+        "windows": [
+            "update-windows",
+            "amazon-cloudwatch-agent-windows",
+            "powershell-windows",
+            "aws-cli-version-2-windows"
+        ]
+    },
+    "default_components_custom": {
+        "amazon-linux-2": [],
+        "ubuntu-20.04": [],
+        "ubuntu-22.04": [],
+        "linux": [],
+        "windows-server-2016": [],
+        "windows-server-2019": [],
+        "windows-server-2022": [],
+        "windows": []
+    }
+}

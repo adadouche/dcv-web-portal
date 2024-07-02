@@ -1,0 +1,95 @@
+Content-Type: multipart/mixed; boundary="//"
+MIME-Version: 1.0
+
+--//
+Content-Type: text/cloud-config; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="cloud-config.txt"
+
+#cloud-config
+cloud_final_modules:
+- [scripts-user, always]
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="userdata.txt"
+#!/bin/sh
+export region=${region}
+export prefix=${prefix}
+
+log() {
+    msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo "$msg"
+    echo "$msg" >> ./setup-gateway.log
+}
+
+export AWS_STS_REGIONAL_ENDPOINTS=regional
+export AWS_DEFAULT_REGION=$region
+
+log "Calling STS regional endpoint = [$region]"
+
+aws sts get-caller-identity >> ./setup-gateway.log 2>&1
+
+log "Creating AWS Profile script = [/etc/profile.d/aws.sh]"
+
+mkdir -p /etc/profile.d
+
+cat <<EOF > /etc/profile.d/aws.sh
+#!/bin/sh 
+export AWS_STS_REGIONAL_ENDPOINTS=regional
+export AWS_DEFAULT_REGION=${region}
+EOF
+
+log "Getting SSM Parameters..."
+
+param_tcp_port="/$prefix/dcv-connection-gateway/tcp-port"
+param_udp_port="/$prefix/dcv-connection-gateway/udp-port"
+param_health_check_port="/$prefix/dcv-connection-gateway/health-check-port"
+param_dcv_endpoint="/$prefix/dcv-api-endpoint"
+
+tcp_port=$(aws ssm get-parameter --name "$param_tcp_port" --query "Parameter.Value" --output text)
+udp_port=$(aws ssm get-parameter --name "$param_udp_port" --query "Parameter.Value" --output text)
+health_check_port=$(aws ssm get-parameter --name "$param_health_check_port" --query "Parameter.Value" --output text)
+dcv_endpoint=$(aws ssm get-parameter --name "$param_dcv_endpoint" --query "Parameter.Value" --output text)
+
+log "  [$param_tcp_port] = [$tcp_port]"
+log "  [$param_udp_port] = [$udp_port]"
+
+log "  [$param_health_check_port] = [$param_health_check_port]"
+log "  [$param_dcv_endpoint] = [$param_dcv_endpoint]"
+
+log "Configuring the NICE DCV Server..."
+
+mkdir -p /etc/dcv-connection-gateway
+
+cat <<EOF > /etc/dcv-connection-gateway/dcv-connection-gateway.conf
+[gateway]
+web-listen-endpoints  = ["0.0.0.0:$tcp_port", "[::]:$tcp_port"]
+quic-listen-endpoints = ["0.0.0.0:$udp_port", "[::]:$udp_port"]
+
+[health-check]
+bind-addr = "::"
+port = $health_check_port
+
+[dcv]
+tls-strict = false
+
+[resolver]
+tls-strict = false
+url = "$dcv_endpoint"
+
+[web-resources]
+tls-strict = false
+url = "http://localhost:8081/static"
+EOF
+
+more /etc/dcv-connection-gateway/dcv-connection-gateway.conf >> ./setup-gateway.log 2>&1
+
+log "Restarting and Enabling the NICE DCV Server service..."
+
+systemctl restart dcv-connection-gateway
+systemctl enable  dcv-connection-gateway
+--//

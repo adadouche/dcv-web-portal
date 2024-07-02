@@ -1,0 +1,113 @@
+---
+os_platform: Linux
+downloads:
+- name: nice-dcv-server
+  url: https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Servers/nice-dcv-2023.1-16220-el7-x86_64.tgz
+  filename: nice-dcv-server.tgz
+- name: google-chrome
+  url: https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
+  filename: google-chrome-stable_x86_64.rpm
+schemaVersion: 1
+parameters:
+- s3_uri_dcv_server:
+    type: string
+    default: ${s3-bucket-uri}/nice-dcv-server.tgz
+    description: 'The NICE DCV Server S3 URI'
+- s3_uri_chrome:
+    type: string
+    default: ${s3-bucket-uri}/google-chrome-stable_x86_64.rpm
+    description: 'The Google Chrome S3 URI'    
+phases:
+- name: build
+  steps:
+  - name: CreateWorkingDirectory
+    action: CreateFolder
+    inputs:
+    - path: "/AWS-VDI-AUTOMATION/BUILD-IMAGE/VDI-COMPONENT"
+      overwrite: true
+  - name: DownloadNiceDCVFromS3URI
+    action: S3Download
+    inputs:
+    - source: "{{ s3_uri_dcv_server }}"
+      destination: "{{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-server.tgz"
+  - name: DownloadBrowserFromS3URI
+    action: S3Download
+    inputs:
+    - source: "{{ s3_uri_chrome }}"
+      destination: "{{ build.CreateWorkingDirectory.inputs[0].path }}/google-chrome-stable_x86_64.rpm" 
+  - name: UncompressNiceDCVServer
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - tar zxvf {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-server.tgz -C {{ build.CreateWorkingDirectory.inputs[0].path }} --overwrite
+      - cp -rf {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-*-x86_64/nice-dcv-server-*.rpm {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-server.rpm
+  - name: InstallEnvironment
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - yum update -y -q
+      - yum install -y gdm gnome-session gnome-classic-session gnome-session-xsession
+      - yum install -y xorg-x11-server-Xorg xorg-x11-fonts-Type1 xorg-x11-drivers 
+      - yum install -y gnome-terminal gnu-free-fonts-common gnu-free-mono-fonts gnu-free-sans-fonts gnu-free-serif-fonts
+      - systemctl get-default
+      - systemctl set-default graphical.target
+      - systemctl isolate graphical.target
+  - name: InstallNiceDCVServer
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - yum install -y {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-server.rpm
+  - name: InstallBrowser
+    action: ExecuteBash
+    inputs:
+      commands:
+      - yum install -y {{ build.CreateWorkingDirectory.inputs[0].path }}/google-chrome-stable_x86_64.rpm
+      - ln -s /usr/bin/google-chrome-stable /usr/bin/chromium   
+  - name: InstallPip
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - yum install -y python3-pip
+  - name: InstallCrudini
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - pip3 install crudini
+  - name: InstallJq
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - yum install -y jq
+  - name: SetNiceDCVConfigurationFile
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - systemctl stop dcvserver
+      - crudini --set /etc/dcv/dcv.conf "connectivity" "enable-quic-frontend" "true"
+      - crudini --set /etc/dcv/dcv.conf "security" "no-tls-strict" "true"
+  - name: Reboot
+    action: Reboot
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1

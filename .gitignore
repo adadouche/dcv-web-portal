@@ -78,21 +78,46 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,macos,linux
 
-# REACT
-web-portal/node_modules/
-web-portal/build/
-web-portal/src/config.js
-node_modules/
-build/
+*.code-workspace
+.idea
 
 # TERRAFORM
-*.tfstate
-*.tfstate.backup
-.terraform*
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform*
 
-terraform/modules/connection-gateway/functions/auth/src/*
-!terraform/modules/connection-gateway/functions/auth/src/requirements.txt
-!terraform/modules/connection-gateway/functions/auth/src/index.py
-!terraform/modules/connection-gateway/functions/auth/src/jwt_auth.py
+code/terraform/**/terraform.tfvars
+code/terraform/**/terraform.tfvars*
+code/terraform/**/terraform*.tfvars
+code/terraform/**/terraform*.tfvars.bck
 
-.idea
+code/terraform/**/*lambdas/**/build
+code/terraform/**/*lambdas/**/dst
+code/terraform/**/*lambdas/**/zip
+code/terraform/**/*lambdas/**/output
+
+code/terraform/**/build/**
+code/terraform/**/dist/**
+code/terraform/**/src/aws-config.js
+
+code/web-content/**/build/**
+code/web-content/**/dist/**
+code/web-content/**/src/aws-config.js
+
+code/**/node_modules
+code/**/__pycache__
+code/**/*.pyc
+code/**/*.h
+code/**/*.rpm
+code/**/*.tgz
+code/**/*.exe
+code/**/build
+code/test/
+
+
+code/**/aws-config.js
+code/terraform/modules/**/web-content/**
+code/web-content/vite.config.ts
+code/terraform/**/*.log
+
+code/web-content/public/downloads/*

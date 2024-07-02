@@ -1,0 +1,20 @@
+---
+os_platform: Windows
+schemaVersion: 1
+parameters:
+phases:
+- name: build
+  steps:
+  - name: Echo
+    action: ExecutePowerShell
+    inputs:
+      commands: 
+      - echo windows
+  - action: Reboot
+    name: Reboot
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+
+
+ 

@@ -1,0 +1,36 @@
+---
+os_platform: Linux
+downloads:
+- name: nice-dcv-connection-gateway
+  url: https://d1uj6qtbmh3dt5.cloudfront.net/2023.0/Gateway/nice-dcv-connection-gateway-2023.0.531-1.el7.x86_64.rpm
+  filename: nice-dcv-connection-gateway.rpm
+schemaVersion: 1
+parameters:
+- s3_uri_dcv_connection_gateway:
+    type: string
+    default: ${s3-bucket-uri}/nice-dcv-connection-gateway.rpm
+    description: 'The NICE DCV Connection Gateway download S3 URI'
+phases:
+- name: build
+  steps:
+  - name: CreateWorkingDirectory
+    action: CreateFolder
+    inputs:
+    - path: "/AWS-VDI-AUTOMATION/BUILD-IMAGE/CONNECTION-GATEWAY-COMPONENT"
+      overwrite: true
+  - name: DownloadNiceDCVFromS3URI
+    action: S3Download
+    inputs:
+    - source: "{{ s3_uri_dcv_connection_gateway }}"
+      destination: "{{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-connection-gateway.rpm"
+  - name: InstallNiceDCVConnectionGateway
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - yum -y update
+      - yum clean all
+      - yum install -y {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-connection-gateway.rpm
+      - systemctl stop dcv-connection-gateway

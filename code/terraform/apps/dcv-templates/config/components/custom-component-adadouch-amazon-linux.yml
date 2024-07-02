@@ -1,0 +1,21 @@
+---
+os_platform: Linux
+schemaVersion: 1
+parameters:
+phases:
+- name: build
+  steps:
+  - action: ExecuteBash
+    name: Echo
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - echo amazon linux
+      - yum install docker -y -q
+  - action: Reboot
+    name: Reboot
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1

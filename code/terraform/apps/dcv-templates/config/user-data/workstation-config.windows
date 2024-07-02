@@ -1,0 +1,93 @@
+<powershell>
+
+function Log() {
+    param (
+        [Parameter(Mandatory)]
+        [string]$text        
+    )
+    $msg="[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")] $text"
+    echo "$msg"
+    echo "$msg" >> ./setup-workstation.log
+}
+
+$region="${region}"
+$project="${project}"
+$application="${application}"
+$environment="${environment}"
+$prefix="${prefix}"
+
+$AWS_STS_REGIONAL_ENDPOINTS='regional'
+$AWS_DEFAULT_REGION='$region'
+
+Log -text "Calling STS regional endpoint = [$region]"
+
+aws sts get-caller-identity  >> ./setup-workstation.log 2>&1
+
+$TOKEN       = Invoke-RestMethod -Headers @{"X-aws-ec2-metadata-token-ttl-seconds" = "21600"} -Method PUT -Uri http://169.254.169.254/latest/api/token
+$INSTANCE_ID = Invoke-RestMethod -Headers @{"X-aws-ec2-metadata-token" = "$TOKEN"} -Method GET -Uri http://169.254.169.254/latest/meta-data/instance-id
+
+Log -text "Found instance id : [$INSTANCE_ID]"
+
+Log -text  "Waiting for EC2 instance [$INSTANCE_ID] status to be ok"
+
+aws ec2 wait instance-status-ok --instance-ids $INSTANCE_ID 
+
+Log -text  "Waiting for EC2 instance [$INSTANCE_ID] status to be ok completed"
+
+$iterations=120
+$sleep=5
+
+$instanceStates = aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$INSTANCE_ID" | ConvertFrom-Json
+$len = @($instanceStates.InstanceInformationList).length
+$pingStatus=$instanceStates.InstanceInformationList[0].PingStatus
+
+While (($len -le 0) -and ($iterations -gt 0) -and ($pingStatus -ne "Online") ) {
+    Log -text "Waiting for SSM instance [$INSTANCE_ID] status to be online"
+
+    Start-Sleep -Seconds $sleep
+    $iterations-=1
+    $instanceStates = aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$INSTANCE_ID" | ConvertFrom-Json
+    $len = @($instanceStates.InstanceInformationList).length
+    $pingStatus=$instanceStates.InstanceInformationList[0].PingStatus
+}
+
+Log -text "Waiting for SSM instance [$INSTANCE_ID] status to be online completed"
+
+function Check-And-Run-Automation-If-Needed {
+    param (
+        [Parameter(Mandatory)]
+        [string]$document
+    )
+
+    Log -text "Check-And-Run-Automation-If-Needed for document [$document]"
+
+    $tag="status-dcv-server-$document"
+    $tag_value=$(aws ec2 describe-tags --query "Tags[0].Value" --filters "Name=resource-type,Values=instance" "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=$tag")
+
+    Log -text "[$INSTANCE_ID] [$tag] Tag = [$tag_value]"
+
+    If("$tag_value" -Or "$tag_value" -ne "completed" ) 
+    {
+        Log -text "[$INSTANCE_ID] [$tag] Configuration is not completed."
+        
+        Log -text "[$INSTANCE_ID] [$tag] Automation execution for document [$document] starting"
+
+        aws lambda invoke `
+            --function-name "$prefix-nice-dcv-server-configure" `
+            --cli-binary-format raw-in-base64-out `
+            --payload "{ \""body\"": \""{ \\""""instanceIds\\"""" : [\\""""$INSTANCE_ID\\""""], \\""""document\\"""" : \\""""$document\\"""", \\""""origin\\"""" : \\""""user-data\\""""   }\"" }" `
+            response.json  >> ./setup-workstation.log 2>&1
+        
+        Log -text "[$INSTANCE_ID] [$tag] Automation execution for document [$document] starting completed."
+    } else{
+        Log -text "[$INSTANCE_ID] [$tag] Configuration is already completed."
+    }
+    
+    Log -text  "Check-And-Run-Automation-If-Needed for document [$document] completed"
+}
+
+Check-And-Run-Automation-If-Needed "configure"
+Check-And-Run-Automation-If-Needed "create-credentials"
+
+</powershell>
+<persist>true</persist>

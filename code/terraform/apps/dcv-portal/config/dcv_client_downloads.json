@@ -1,0 +1,15 @@
+{
+    "Windows (x86_64 and x86)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-client-Release-2023.1-8993.msi",
+    "Windows Portable (x86_64 and x86)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-client-Release-portable-2023.1-8993.zip",
+    "Red Hat Enterprise Linux 7": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer-2023.1.6203-1.el7.x86_64.rpm",
+    "Red Hat Enterprise Linux 8": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer-2023.1.6203-1.el8.x86_64.rpm",
+    "Red Hat Enterprise Linux 9": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer-2023.1.6203-1.el9.x86_64.rpm",
+    "CentOS 7 (x86_64)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer-2023.1.6203-1.el7.x86_64.rpm",
+    "CentOS 8 (x86_64)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer-2023.1.6203-1.el8.x86_64.rpm",
+    "CentOS 9 (x86_64)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer-2023.1.6203-1.el9.x86_64.rpm",
+    "SUSE Enterprise Linux 15 (x86_64)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer-2023.1.6203-1.sles15.x86_64.rpm",
+    "Ubuntu 20.04 (x86_64)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer_2023.1.6203-1_amd64.ubuntu2004.deb",
+    "Ubuntu 22.04 (x86_64)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer_2023.1.6203-1_amd64.ubuntu2204.deb",
+    "macOS (x86_64)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer-2023.1.6203.x86_64.dmg",
+    "macOS (arm64)": "https://d1uj6qtbmh3dt5.cloudfront.net/2023.1/Clients/nice-dcv-viewer-2023.1.6203.arm64.dmg"
+}

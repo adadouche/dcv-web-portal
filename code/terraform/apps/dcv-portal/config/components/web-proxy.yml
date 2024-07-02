@@ -1,0 +1,18 @@
+---
+os_platform: Linux
+schemaVersion: 1
+parameters:
+phases:
+- name: build
+  steps:
+  - name: InstallNGinx
+    action: ExecuteBash
+    onFailure: Abort
+    maxAttempts: 3
+    timeoutSeconds: -1
+    inputs:
+      commands:
+      - yum -y update
+      - yum clean all
+      - amazon-linux-extras install nginx1
+      - systemctl enable nginx

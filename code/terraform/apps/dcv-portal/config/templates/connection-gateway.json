@@ -1,0 +1,37 @@
+{
+  "description": "NICE DCV Connection Gateway",
+  "template_type": "connection-gateway",
+  "instance_type": "t3.small",
+  "os_name": "amazon-linux-2",
+  "os_base_ami_regexp": "amzn2-ami-kernel-5.10-hvm-2.0.*-x86_64-gp2",
+  "autoscaling_group": {
+    "udp_port": 8443,
+    "tcp_port": 8443,
+    "health_check_port": 8989,
+    "max_size": 4,
+    "min_size": 1
+  },
+  "volume_type": "gp3",
+  "volume_size": 10,
+  "volume_iops": 3000,
+  "volume_throughput": 250,
+  "components_aws": [
+    "amazon-cloudwatch-agent-linux"
+  ],
+  "components_custom": [
+    "nice-dcv-connection-gateway"
+  ],
+  "policies_managed": [],
+  "policies_inline": [
+    {
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::dcv-license.${region}/*"
+      ],
+      "Condition": {}
+    }
+  ]
+}

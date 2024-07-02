@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0",
+  "os_platform": "Linux",
+  "parameters": [
+    {
+      "dcv_s3_uri": {
+        "type": "string",
+        "default": "${nice-dcv-connection-gateway}",
+        "description": "The NICE DCV Connection Gateway download S3 URI"
+      }
+    }
+  ],
+  "phases": [
+    {
+      "name": "build",
+      "steps": [
+        {
+          "name": "CreateWorkingDirectory",
+          "action": "CreateFolder",
+          "inputs": [{
+            "path": "/AWS-VDI-AUTOMATION/BUILD-IMAGE/CONNECTION-GATEWAY-COMPONENT",
+            "overwrite": true
+          }],
+          "onFailure": "Abort"
+        },
+        {
+          "name": "DownloadNiceDCVFromS3URI",
+          "action": "S3Download",
+          "inputs": [{
+            "source": "{{ dcv_s3_uri }}",
+            "destination": "{{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-connection-gateway.rpm"
+          }],
+          "onFailure": "Abort"
+        },
+        {
+          "name": "InstallNiceDCVConnectionGateway",
+          "action": "ExecuteBash",
+          "inputs": {
+            "commands": [
+              "yum -y update",
+              "yum clean all",
+              "yum install -y {{ build.CreateWorkingDirectory.inputs[0].path }}/nice-dcv-connection-gateway.rpm",
+              "systemctl stop dcv-connection-gateway"
+            ]
+          },
+          "onFailure": "Abort",
+          "maxAttempts": 3,
+          "timeoutSeconds": -1
+        }
+      ]
+    }
+  ]
+}

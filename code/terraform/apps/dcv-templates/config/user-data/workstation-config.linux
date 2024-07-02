@@ -1,0 +1,129 @@
+Content-Type: multipart/mixed; boundary="//"
+MIME-Version: 1.0
+
+--//
+Content-Type: text/cloud-config; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="cloud-config.txt"
+
+#cloud-config
+cloud_final_modules:
+- [scripts-user, always]
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="userdata.txt"
+#!/bin/sh
+log() {
+    msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo "$msg"
+    echo "$msg" >> ./setup-workstation.log
+}
+if ! [ -x "$(command -v jq)" ]; then
+  log 'Info: jq is not installed.'
+  if [ -n "`which apt-get`" ]; then 
+    apt-get install -y jq
+  elif [ -n "`which yum`" ]; then 
+    yum -y install jq
+  fi 
+fi
+
+export region=${region}
+export project=${project}
+export environment=${environment}
+export application=${application}
+export prefix=${prefix}
+
+export AWS_STS_REGIONAL_ENDPOINTS=regional
+export AWS_DEFAULT_REGION=$region
+
+log "Calling STS regional endpoint = [$region]"
+
+aws sts get-caller-identity >> ./setup-workstation.log 2>&1
+
+mkdir -p /etc/profile.d
+
+cat <<EOF > /etc/profile.d/aws.sh
+#!/bin/sh 
+export region=${region}
+export AWS_STS_REGIONAL_ENDPOINTS=regional
+export AWS_DEFAULT_REGION=$region
+EOF
+
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+
+log "Found instance id : [$INSTANCE_ID]"
+
+log "Waiting for instance [$INSTANCE_ID] to be in status ok"
+
+aws ec2 wait instance-status-ok --instance-ids $INSTANCE_ID
+
+log "Waiting for instance [$INSTANCE_ID] to be in status ok completed"
+
+iterations=120
+sleep=5
+
+instanceStates=$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$INSTANCE_ID")
+len=$( echo $instanceStates | jq -r '.InstanceInformationList | length' )
+pingStatus=$( echo $instanceStates | jq -r '.InstanceInformationList[0].PingStatus' ) 
+
+while [ $len -le 0 ] && [ $iterations -gt 0 ] && [ "$pingStatus" != "Online" ]
+do
+    log "Waiting for SSM instance [$INSTANCE_ID] status to be online"
+    sleep $sleep
+    iterations=$((iterations-1))
+
+    instanceStates=$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$INSTANCE_ID")
+    len=$( echo $instanceStates | jq -r '.InstanceInformationList | length' )
+    pingStatus=$( echo $instanceStates | jq -r '.InstanceInformationList[0].PingStatus' ) 
+
+done
+
+log "Waiting for SSM instance [$INSTANCE_ID] status to be online completed"
+
+check_and_run_automation_if_needed() {
+    document="$1"
+
+    log "Check-And-Run-Automation-If-Needed for document [$document]"
+
+    tag="status-dcv-server-$document"
+    tag_value=$(aws ec2 describe-tags --query "Tags[0].Value" --filters "Name=resource-type,Values=instance" "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=$tag")
+
+    log "[$INSTANCE_ID] [$tag] Tag = [$tag_value]"
+
+    if [ -z "$tag_value" -o "$tag_value" != "completed" ]
+    then
+        log "[$INSTANCE_ID] [$tag] Configuration is not completed."
+       
+        log "[$INSTANCE_ID] [$tag] Automation execution for document [$document] starting"
+
+        # aws ssm start-automation-execution \
+        #   --document-name "$document_name" \
+        #   --parameters "InstanceId=$INSTANCE_ID,prefix=$prefix,project=$project,application=$application,environment=$environment" >> ./setup-workstation.log 2>&1
+
+		cat <<EOF > payload.json 
+{ "body": "{ \"instanceIds\" : [\"$INSTANCE_ID\"], \"document\" : \"$document\", \"origin\" : \"user-data\" }" }
+EOF
+
+        aws lambda invoke \
+            --function-name "$prefix-nice-dcv-server-configure" \
+            --cli-binary-format raw-in-base64-out \
+            --payload file://payload.json \
+            response.json >> ./setup-workstation.log 2>&1
+
+        log "[$INSTANCE_ID] [$tag] Automation execution for document [$document] starting completed."
+    else
+        log "[$INSTANCE_ID] [$tag] Configuration is already completed."
+    fi
+
+    log "Check-And-Run-Automation-If-Needed for document [$document] completed"
+}
+
+check_and_run_automation_if_needed "configure"
+check_and_run_automation_if_needed "create-credentials"
+
+--//

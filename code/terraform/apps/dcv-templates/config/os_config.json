@@ -1,0 +1,32 @@
+{
+    "amazon-linux-2": {
+        "os_version": "2",
+        "os_family": "amazon-linux",
+        "os_platform": "Linux"
+    },
+    "ubuntu-22.04": {
+        "os_version": "22.04",
+        "os_family": "ubuntu",
+        "os_platform": "Linux"
+    },
+    "ubuntu-20.04": {
+        "os_version": "20.04",
+        "os_family": "ubuntu",
+        "os_platform": "Linux"
+    },
+    "windows-server-2016": {
+        "os_version": "2016",
+        "os_family": "windows-server",
+        "os_platform": "Windows"
+    },
+    "windows-server-2019": {
+        "os_version": "2019",
+        "os_family": "windows-server",
+        "os_platform": "Windows"
+    },
+    "windows-server-2022": {
+        "os_version": "2022",
+        "os_family": "windows-server",
+        "os_platform": "Windows"
+    }
+}
